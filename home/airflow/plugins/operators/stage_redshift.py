@@ -30,7 +30,7 @@ class StageToRedshiftOperator(BaseOperator):
                  ignore_headers=1,
                  *args, **kwargs):
 
-        super(LoadDimensionOperator, self).__init__(*args, **kwargs)
+        super(StageToRedshiftOperator, self).__init__(*args, **kwargs)
         # Map params here
         # Example:
         # self.conn_id = conn_id
