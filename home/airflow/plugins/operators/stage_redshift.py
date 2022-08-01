@@ -26,7 +26,7 @@ class StageToRedshiftOperator(BaseOperator):
                  s3_bucket="",
                  s3_key="",
                  table="",
-                 ddl="",
+                 create_sql="",
                  delimiter=",",
                  ignore_headers=1,
                  *args, **kwargs):
@@ -40,7 +40,7 @@ class StageToRedshiftOperator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.table = table
-        self.ddl = ddl
+        self.create_sql = create_sql
         self.delimiter = delimiter
         self.ignore_headers = ignore_headers
 
@@ -50,7 +50,7 @@ class StageToRedshiftOperator(BaseOperator):
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
 
         self.log.info("Creating staging tables")
-        redshift.run(self.ddl)
+        redshift.run(self.create_sql)
 
         self.log.info("Clearing data from destination Redshift table")
         redshift.run("DELETE FROM {}".format(self.table))
@@ -58,7 +58,7 @@ class StageToRedshiftOperator(BaseOperator):
         self.log.info("Copying data from S3 to Redshift")
         rendered_key = self.s3_key.format(**context)
         s3_path = "s3://{}/{}".format(self.s3_bucket, rendered_key)
-        formatted_sql = S3ToRedshiftOperator.copy_sql.format(
+        formatted_sql = self.copy_sql.format(
             self.table,
             s3_path,
             credentials.access_key,
@@ -68,5 +68,3 @@ class StageToRedshiftOperator(BaseOperator):
         )
         redshift.run(formatted_sql)
         self.log.info("Completed copying data from S3 to Redshift")
-
-
