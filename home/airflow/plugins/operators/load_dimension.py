@@ -16,31 +16,33 @@ class LoadDimensionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 # Define your operators params (with defaults) here
-                 # Example:
-                 # conn_id = your-connection-name
+                 redshift_conn_id="",
+                 table="",
+                 select_sql="",
+                 create_sql="",
+                 trunc_flag=True,
                  *args, **kwargs):
 
         super(LoadDimensionOperator, self).__init__(*args, **kwargs)
-        # Map params here
-        # Example:
-        # self.conn_id = conn_id
         self.redshift_conn_id = redshift_conn_id
         self.table = table
         self.create_sql = create_sql
         self.select_sql = select_sql
-        self.truncate_sql = truncate_sql
-        self.insert_sql = insert_sql
+        self.trunc_flag = trunc_flag
 
     def execute(self, context):
-        self.log.info('LoadDimensionOperator not implemented yet')
+        self.log.info("Connecting to Redshift...")
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
 
-        self.log.info("Create a dimension table if not exists")
-        redshift.run(create_sql)
-#        formatted_truncate_sql = LoadDimensionOperator.truncate_sql.format(self.table)
+        self.log.info(f"Create a dimension table {self.table} if not exists")
+        redshift.run(self.create_sql)
 
-        self.log.info("Insert into the dimension table")
+        if self.trunc_flag:
+            self.log.info(f"Truncating the dimension table {self.table}")
+            formatted_truncate_sql = self.truncate_sql.format(self.table)
+            redshift.run(formatted_truncate_sql)
+
+        self.log.info(f"Insert into the dimension table {self.table}")
         formatted_insert_sql = self.insert_sql.format(
             self.table,
             self.select_sql
