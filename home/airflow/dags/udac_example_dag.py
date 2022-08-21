@@ -7,13 +7,19 @@ from airflow.operators import (StageToRedshiftOperator, LoadFactOperator,
 from helpers import SqlQueries
 
 default_args = {
+    'depends_on_past': False,
+    'email_on_retry': False,
+    'retries': 3,
+    'retry_delay': timedelta(minutes=5),
+    'catchup': False,
     'owner': 'udacity',
     'start_date': datetime(2019, 1, 12),
 }
 
 dag = DAG('udac_example_dag',
           default_args=default_args,
-          description='Load and transform data in Redshift with Airflow'
+          description='Load and transform data in Redshift with Airflow',
+          schedule_interval=timedelta(hours=1)
         )
 
 start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
@@ -27,6 +33,7 @@ stage_events_to_redshift = StageToRedshiftOperator(
     create_sql = SqlQueries.staging_events_create,
     s3_bucket = "udacity-dend",
     s3_key = "log_data",
+    region = "us-west-2",
     json_format = "s3://udacity-dend/log_json_path.json"
 )
 
@@ -38,7 +45,8 @@ stage_songs_to_redshift = StageToRedshiftOperator(
     table = "staging_songs",
     create_sql = SqlQueries.staging_songs_create,
     s3_bucket = "udacity-dend",
-    s3_key = "song_data/A/A/A"
+    s3_key = "song_data/A/A/A",
+    region = "us-west-2"
 )
 
 load_songplays_table = LoadFactOperator(
@@ -92,8 +100,14 @@ load_time_dimension_table = LoadDimensionOperator(
 
 run_quality_checks = DataQualityOperator(
     task_id='Run_data_quality_checks',
-    tables = ['songplays', 'songs', 'users', 'artists', 'time'],
-    dag=dag
+    dag=dag,
+    checks = [
+        {'test_sql': "SELECT COUNT(*) FROM songsplays", 'expected_result': 0, 'comparison': '>'},
+        {'test_sql': "SELECT COUNT(*) FROM songs", 'expected_result': 0, 'comparison': '>'},
+        {'test_sql': "SELECT COUNT(*) FROM users", 'expected_result': 0, 'comparison': '>'},
+        {'test_sql': "SELECT COUNT(*) FROM artists", 'expected_result': 0, 'comparison': '>'},
+        {'test_sql': "SELECT COUNT(*) FROM time", 'expected_result': 0, 'comparison': '>'}
+    ]
 )
 
 end_operator = DummyOperator(task_id='Stop_execution',  dag=dag)
